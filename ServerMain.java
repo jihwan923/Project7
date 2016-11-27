@@ -30,6 +30,7 @@ public class ServerMain extends Application implements Observer {
 	private ArrayList<Observable> clientList;
 	private ArrayList<String> clientNameList;
 	private int clientNum = 0;
+	private boolean newClientAdded;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -83,18 +84,21 @@ public class ServerMain extends Application implements Observer {
 					System.out.println("Client " + clientNum + "'s IP Address is " 
 								+ inetAddress.getHostAddress() + "\n");
 					*/
-					PrintWriter writer = new PrintWriter(clientSocket.getOutputStream());
-					clientOutputStreams.add(writer);
-					ClientHandler newHandler = new ClientHandler(clientSocket, clientNum);
+					//newClientAdded = false;
+					PrintWriter newWriter = new PrintWriter(clientSocket.getOutputStream());
+					//clientOutputStreams.add(newWriter);
+					ClientHandler newHandler = new ClientHandler(clientSocket, clientNum, newWriter);
 					Thread t = new Thread(newHandler);
 					clientList.add(newHandler);
+					t.start();
 					
-					String newName = "" + clientNum;
-					clientNameList.add(newName);
+					//String newName = newHandler.name;
+					//clientNameList.add(newName);
 					
-					String outMessage = "*setClientName*" + newName;
-					writer.println(outMessage);
+					//String outMessage = "*setClientName*" + newName;
+					//newWriter.println(outMessage);
 					
+					/*
 					String outwardMessage = "*peopleOnline*";
 					for(String s: clientNameList){
 						outwardMessage = outwardMessage + s + ",";
@@ -111,9 +115,7 @@ public class ServerMain extends Application implements Observer {
 					}
 					
 					
-					
-					t.start();
-					serverLog.appendText("got a connection with " + newName + "\n");
+					serverLog.appendText("got a connection with " + newName + "\n");*/
 				}
 			} 
 			catch(IOException ex) { 
@@ -132,12 +134,14 @@ public class ServerMain extends Application implements Observer {
 
 	class ClientHandler extends Observable implements Runnable {
 		private BufferedReader reader;
+		private PrintWriter writer;
 		private int number;
-		private String name;
+		public String name;
 
-		public ClientHandler(Socket clientSocket, int clientNum) throws IOException {
+		public ClientHandler(Socket clientSocket, int clientNum, PrintWriter wr) throws IOException {
 			Socket sock = clientSocket;
 			this.number = clientNum;
+			this.writer = wr;
 			this.name = "" + this.number;
 			reader = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 		}
@@ -147,25 +151,53 @@ public class ServerMain extends Application implements Observer {
 			try {
 				while ((message = reader.readLine()) != null) {
 					if(message.startsWith("*sendToAll*")){
-						message = message.replace("*sendToAll*", "");
-						for(int i = 0; i < clientOutputStreams.size(); i++){
-							clientOutputStreams.get(i).println(this.name + ": " + message);
-							clientOutputStreams.get(i).flush();
-						}
-					}
-					else{
-						String[] messageParsed = message.split(",");
-						List<String> listParsed = Arrays.asList(messageParsed);
-						String actualMessage = messageParsed[messageParsed.length - 1].replace("*privateMessages*", "");
-						for(int i = 0; i < clientOutputStreams.size(); i++){
-							if(listParsed.contains(clientNameList.get(i))){
-								clientOutputStreams.get(i).println(this.name + ": " + actualMessage);
+						synchronized(clientOutputStreams){
+							message = message.replace("*sendToAll*", "");
+							for(int i = 0; i < clientOutputStreams.size(); i++){
+								clientOutputStreams.get(i).println(this.name + ": " + message);
 								clientOutputStreams.get(i).flush();
 							}
 						}
+						serverLog.appendText("read " + message + "\n");
 					}
-					serverLog.appendText("read " + message + "\n");
-					//notifyClients("Client " + number + ": " + message);
+					else if(message.startsWith("*sendingNewUserName*")){
+						synchronized(clientOutputStreams){
+							String userNameInput = message.replace("*sendingNewUserName*", "");
+							this.name = userNameInput;
+							clientOutputStreams.add(this.writer);
+							clientNameList.add(this.name);
+							
+							String outwardMessage = "*peopleOnline*";
+							for(String s: clientNameList){
+								outwardMessage = outwardMessage + s + ",";
+							}
+							for (PrintWriter w : clientOutputStreams) {
+								w.println(outwardMessage);
+								w.flush();
+							}
+							
+							outwardMessage = "*joinedGroup!*" + this.name;
+							for (PrintWriter wr : clientOutputStreams) {
+								wr.println(outwardMessage);
+								wr.flush();
+							}
+						}
+						serverLog.appendText("got a connection with " + this.name + "\n");
+					}
+					else{
+						synchronized(clientOutputStreams){
+							String[] messageParsed = message.split(",");
+							List<String> listParsed = Arrays.asList(messageParsed);
+							String actualMessage = messageParsed[messageParsed.length - 1].replace("*privateMessages*", "");
+							for(int i = 0; i < clientOutputStreams.size(); i++){
+								if(listParsed.contains(clientNameList.get(i))){
+									clientOutputStreams.get(i).println(this.name + ": " + actualMessage);
+									clientOutputStreams.get(i).flush();
+								}
+							}
+						}
+						serverLog.appendText("read " + message + "\n");
+					}
 				}
 			} catch (IOException e) {
 				e.printStackTrace();

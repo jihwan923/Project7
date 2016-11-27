@@ -23,7 +23,10 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 
 import javafx.scene.control.TextField; 
-import javafx.scene.layout.BorderPane; 
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.stage.Stage; 
 
 
@@ -40,30 +43,75 @@ public class ClientMain extends Application{
 	public ArrayList<String> clientNameList = new ArrayList<String>();
 	public TextArea availableClientsText;
 	public Stage pS;
+	private boolean initialized;
+	public MenuButton groupCreated = new MenuButton();
 
 	@Override // Override the start method in the Application class 
 	public void start(Stage primaryStage) { 
 		// Panel p to hold the label and text field 
-		
+		initialized = false;
 		pS = primaryStage;
 		BorderPane paneForTextField = new BorderPane(); 
 		paneForTextField.setPadding(new Insets(5, 5, 5, 5)); 
 		paneForTextField.setStyle("-fx-border-color: green"); 
 		paneForTextField.setLeft(new Label("Enter the server name: ")); 
+		Label initialPrompt = new Label("Please enter your ID and desired server name:");
+		Label userId = new Label("User ID:");
+		Label serverPrompt = new Label("Server IP:");
+		TextField userIdEntry = new TextField();
+		TextField serverEntry = new TextField();
+		Button sendInitialInfoButton = new Button("Confirm");
+		
+		sendInitialInfoButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+            	if(userIdEntry.getText() != null && serverEntry.getText() != null && !initialized){
+            		try { 
+            			initialized = true;
+            			
+        				String ipName = serverEntry.getText();
+        				String idName = userIdEntry.getText();
+        				serverName = ipName;
+        				name = idName;
+        				
+        				@SuppressWarnings("resource")
+        				Socket socket = new Socket(serverName, 4242); 
+        				
+        				InputStreamReader streamReader = new InputStreamReader(socket.getInputStream());
+        				fromServer = new BufferedReader(streamReader);
+        				toServer = new PrintWriter(socket.getOutputStream());
+        				
+        				dataFromServer = new DataInputStream(socket.getInputStream()); // create an input stream to receive data from server 
+        				dataToServer = new DataOutputStream(socket.getOutputStream()); // create an output stream to send data to server
 
-		TextField ipField = new TextField(); 
-		ipField.setAlignment(Pos.BOTTOM_RIGHT); 
-		paneForTextField.setCenter(ipField); 
+        				String confirmNewName = "*sendingNewUserName*";
+        				String newMessage = confirmNewName + idName;
+        				toServer.println(newMessage);
+        				toServer.flush();
+        				userIdEntry.setText("");
+                		userIdEntry.requestFocus();
+                		serverEntry.setText("");
+                		serverEntry.requestFocus();
+                		userIdEntry.setDisable(true);
+                		serverEntry.setDisable(true);
+        				sendInitialInfoButton.setDisable(true);
+        				initialPrompt.setText("ChatRoom Access: " + idName);
+        				//availableClientsText.appendText("Other People Online:\n");
+        				//System.out.println("networking established");
+        				Thread clientThread = new Thread(new IncomingReader(socket));
+        				clientThread.start();
+        			} 
+        			catch (IOException ex) { 
+        				System.err.println(ex); 
+        			} 
+            	}
+            }
+        });
 
-
-		BorderPane chatTextField = new BorderPane();
-		chatTextField.setPadding(new Insets(5, 5, 5, 5));
-		chatTextField.setStyle("-fx-border-color: red");
-		chatTextField.setLeft(new Label("Chat: "));
+		Label chatLabel = new Label("Chat: ");
 		
 		TextField outgoing = new TextField();
 		outgoing.setAlignment(Pos.BOTTOM_RIGHT);
-		chatTextField.setCenter(outgoing);
 		
 		Button sendButton = new Button("Send");
 		
@@ -98,25 +146,19 @@ public class ClientMain extends Application{
             	}
             }
         });
-		chatTextField.setRight(sendButton);
-
-		BorderPane mainPane = new BorderPane(); 
 		
 		incoming = new TextArea(); // text area for the incoming server message
-		incoming.setPrefWidth(496);
+		incoming.setPrefWidth(300);
 		incoming.setPrefHeight(320);
 		incoming.setEditable(false); // prevent the users to edit the text areas
-		mainPane.setCenter(new ScrollPane(incoming)); 
-		mainPane.setTop(paneForTextField); 
-		mainPane.setBottom(chatTextField);
 		
+		Label peopleOnlineLabel = new Label("Available People:");
 		availableClientsText = new TextArea();
-		availableClientsText.setPrefWidth(200);
+		availableClientsText.setPrefWidth(100);
 		availableClientsText.setPrefHeight(200);
 		availableClientsText.setEditable(false);
-		mainPane.setRight(new ScrollPane(availableClientsText));
 		
-		mainPane.setLeft(clientsOnline);
+		Label privateMessageLabel = new Label("Select people to\n message to:");
 		
 		/*
 		 * Create GROUP************
@@ -139,37 +181,68 @@ public class ClientMain extends Application{
             }
         });
 		
+		initialPrompt.setLayoutX(200);
+		initialPrompt.setLayoutY(5);
+		initialPrompt.setFont(Font.font("Verdana",15));
+		initialPrompt.setTextFill(Color.BLUE);
+		userId.setLayoutX(200);
+		userId.setLayoutY(50);
+		serverPrompt.setLayoutX(200);
+		serverPrompt.setLayoutY(100);
+		userIdEntry.setLayoutX(260);
+		userIdEntry.setLayoutY(45);
+		userIdEntry.setFont(Font.font("Tahoma"));
+		serverEntry.setLayoutX(260);
+		serverEntry.setLayoutY(95);
+		serverEntry.setFont(Font.font("Tahoma"));
+		sendInitialInfoButton.setLayoutX(430);
+		sendInitialInfoButton.setLayoutY(95);
+		peopleOnlineLabel.setLayoutX(10);
+		peopleOnlineLabel.setLayoutY(150);
+		peopleOnlineLabel.setFont(Font.font("Cambria", 12));
+		peopleOnlineLabel.setTextFill(Color.GREEN);
+		availableClientsText.setLayoutX(10);
+		availableClientsText.setLayoutY(175);
+		privateMessageLabel.setLayoutX(140);
+		privateMessageLabel.setLayoutY(140);
+		privateMessageLabel.setFont(Font.font("Cambria", 12));
+		privateMessageLabel.setTextFill(Color.DARKGREEN);
+		clientsOnline.setLayoutX(140);
+		clientsOnline.setLayoutY(175);
+		incoming.setLayoutX(240);
+		incoming.setLayoutY(140);
+		chatLabel.setLayoutX(200);
+		chatLabel.setLayoutY(460);
+		chatLabel.setFont(Font.font("Impact", 12));
+		chatLabel.setTextFill(Color.FORESTGREEN);
+		outgoing.setLayoutX(240);
+		outgoing.setLayoutY(460);
+		outgoing.setPrefWidth(300);
+		sendButton.setLayoutX(540);
+		sendButton.setLayoutY(460);
+		sendButton.setTextFill(Color.DARKBLUE);
+		
+		Pane mainPane = new Pane(); 
+		mainPane.getChildren().add(initialPrompt);
+		mainPane.getChildren().add(userId);
+		mainPane.getChildren().add(serverPrompt);
+		mainPane.getChildren().add(userIdEntry);
+		mainPane.getChildren().add(serverEntry);
+		mainPane.getChildren().add(sendInitialInfoButton);
+		mainPane.getChildren().add(peopleOnlineLabel);
+		mainPane.getChildren().add(availableClientsText);
+		mainPane.getChildren().add(privateMessageLabel);
+		mainPane.getChildren().add(clientsOnline);
+		mainPane.getChildren().add(incoming);
+		mainPane.getChildren().add(chatLabel);
+		mainPane.getChildren().add(outgoing);
+		mainPane.getChildren().add(sendButton);
+		
 		// Create a scene and place it in the stage 
-		Scene scene = new Scene(mainPane, 500, 400); 
-		primaryStage.setTitle("Client"); // Set the stage title 
+		Scene scene = new Scene(mainPane, 700, 500); 
+		primaryStage.setTitle("Chatroom"); // Set the stage title 
 		primaryStage.setScene(scene); // Place the scene in the stage 
 		primaryStage.show(); // Display the stage 
-
-		ipField.setOnAction(e -> { 
-			try { 
-				// Get the radius from the text field 
-				String ipName = ipField.getText();
-				serverName = ipName;
-				
-				@SuppressWarnings("resource")
-				Socket socket = new Socket(serverName, 4242); 
-				
-				InputStreamReader streamReader = new InputStreamReader(socket.getInputStream());
-				fromServer = new BufferedReader(streamReader);
-				toServer = new PrintWriter(socket.getOutputStream());
-				
-				dataFromServer = new DataInputStream(socket.getInputStream()); // create an input stream to receive data from server 
-				dataToServer = new DataOutputStream(socket.getOutputStream()); // create an output stream to send data to server
-
-				availableClientsText.appendText("Other People Online:\n");
-				//System.out.println("networking established");
-				Thread clientThread = new Thread(new IncomingReader(socket));
-				clientThread.start();
-			} 
-			catch (IOException ex) { 
-				System.err.println(ex); 
-			} 
-		}); 
 	}
 	
 	public static void main(String[] args) {
