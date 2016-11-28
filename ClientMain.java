@@ -45,6 +45,8 @@ public class ClientMain extends Application{
 	public Stage pS;
 	private boolean initialized;
 	public MenuButton groupCreated = new MenuButton();
+	public ArrayList<String> groupClientList = new ArrayList<String>();
+	public TextArea groupListArea = new TextArea();
 
 	@Override // Override the start method in the Application class 
 	public void start(Stage primaryStage) { 
@@ -119,26 +121,50 @@ public class ClientMain extends Application{
             @Override
             public void handle(ActionEvent event) {
             	if(dataToServer != null && dataFromServer != null){
-            		int numSent = 0;
-            		String totalMessage = "";
-            		for(int i = 0; i < clientsOnline.getItems().size(); i++){
-            			CustomMenuItem m = (CustomMenuItem)clientsOnline.getItems().get(i);
+            		int numGroupPeopleSelected = 0;
+            		int k = 0;
+            		for(k = 0; k < groupCreated.getItems().size(); k++){
+            			CustomMenuItem m = (CustomMenuItem)groupCreated.getItems().get(k);
             			CheckBox c = (CheckBox)m.getContent();
             			if(c.isSelected()){
-            				String clientName = clientNameList.get(i);
-            				totalMessage = totalMessage + clientName + ",";
-            				numSent++;
+            				numGroupPeopleSelected += 1;
+            				break;
             			}
             		}
             		
-            		String chatMessage = outgoing.getText();
-            		if(numSent == 0){
-            			totalMessage = "*sendToAll*" + chatMessage;
+            		String totalMessage = "";
+            		
+            		if(numGroupPeopleSelected == 0){
+            			int numSent = 0;
+                		for(int i = 0; i < clientsOnline.getItems().size(); i++){
+                			CustomMenuItem m = (CustomMenuItem)clientsOnline.getItems().get(i);
+                			CheckBox c = (CheckBox)m.getContent();
+                			if(c.isSelected()){
+                				String clientName = clientNameList.get(i);
+                				totalMessage = totalMessage + clientName + ",";
+                				numSent++;
+                			}
+                		}
+                		String chatMessage = outgoing.getText();
+                		if(numSent == 0){
+                			totalMessage = "*sendToAll*" + chatMessage;
+                		}
+                		else{
+                			totalMessage = totalMessage + name + ","; // include the messenger as well
+                			totalMessage = totalMessage + "*privateMessages*" + chatMessage;
+                		}
             		}
             		else{
-            			totalMessage = totalMessage + name + ","; // include the messenger as well
-            			totalMessage = totalMessage + "*privateMessages*" + chatMessage;
+            			String groupClientsNames = groupClientList.get(k);
+            			String[] membersInGroup = groupClientsNames.split(",");
+            			String groupNameExtracted = membersInGroup[0];
+            			for(int r = 1; r < membersInGroup.length; r++){
+            				totalMessage = totalMessage + membersInGroup[r] + ",";
+            			}
+            			String messageToBeSent = outgoing.getText();
+            			totalMessage = totalMessage + "*privateMessages*" + "*" + groupNameExtracted + "*: " + messageToBeSent;
             		}
+
             		toServer.println(totalMessage);
             		toServer.flush();
             		outgoing.setText("");
@@ -160,6 +186,15 @@ public class ClientMain extends Application{
 		
 		Label privateMessageLabel = new Label("Select people to\n message to:");
 		
+		Label groupCreateLabel = new Label("Enter name of new group:\n*People selected to receive\nmessage will be added*");
+		TextField newGroupField = new TextField();
+		Label selectGroupLabel = new Label("Select Group to\nsend message to: ");
+		Label groupYouArePartOf = new Label("Groups you are part of:");
+		groupListArea.setPrefWidth(100);
+		groupListArea.setPrefHeight(150);
+		groupListArea.setEditable(false);
+		
+		
 		/*
 		 * Create GROUP************
 		 */
@@ -168,7 +203,33 @@ public class ClientMain extends Application{
 		groupButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-            	
+            	if(newGroupField.getText() != null){
+            		int peopleSelected = 0;
+            		String totalMessage = "*CreatedNewGroup!*";
+            		String newGroupName = newGroupField.getText();
+            		totalMessage = totalMessage + newGroupName + ",";
+            		for(int i = 0; i < clientsOnline.getItems().size(); i++){
+            			CustomMenuItem m = (CustomMenuItem)clientsOnline.getItems().get(i);
+            			CheckBox c = (CheckBox)m.getContent();
+            			if(c.isSelected()){
+            				String clientName = clientNameList.get(i);
+            				totalMessage = totalMessage + clientName + ",";
+            				peopleSelected++;
+            			}
+            		}
+            		
+            		//groupClientList.add(newGroupName);
+            		if(peopleSelected == 0){
+            			incoming.appendText("Please select people to add to the group before creating a group!!!");
+            		}
+            		else{
+            			totalMessage = totalMessage + name + ","; // include the messenger as well
+            			toServer.println(totalMessage);
+            			toServer.flush();
+            			newGroupField.setText("");
+            			newGroupField.requestFocus();
+            		}
+            	}
             }
         });
 		
@@ -221,6 +282,29 @@ public class ClientMain extends Application{
 		sendButton.setLayoutX(540);
 		sendButton.setLayoutY(460);
 		sendButton.setTextFill(Color.DARKBLUE);
+		groupCreateLabel.setLayoutX(560);
+		groupCreateLabel.setLayoutY(140);
+		groupCreateLabel.setFont(Font.font("Cambria", 12));
+		groupCreateLabel.setTextFill(Color.NAVY);
+		newGroupField.setLayoutX(560);
+		newGroupField.setLayoutY(200);
+		newGroupField.setFont(Font.font("Impact"));
+		newGroupField.setPrefWidth(100);
+		groupButton.setLayoutX(660);
+		groupButton.setLayoutY(200);
+		groupButton.setTextFill(Color.DARKRED);
+		selectGroupLabel.setLayoutX(140);
+		selectGroupLabel.setLayoutY(250);
+		selectGroupLabel.setFont(Font.font("Cambria", 12));
+		selectGroupLabel.setTextFill(Color.DARKRED);
+		groupCreated.setLayoutX(140);
+		groupCreated.setLayoutY(285);
+		groupYouArePartOf.setLayoutX(560);
+		groupYouArePartOf.setLayoutY(240);
+		groupYouArePartOf.setFont(Font.font("Cambria", 12));
+		groupYouArePartOf.setTextFill(Color.MEDIUMSEAGREEN);
+		groupListArea.setLayoutX(560);
+		groupListArea.setLayoutY(265);
 		
 		Pane mainPane = new Pane(); 
 		mainPane.getChildren().add(initialPrompt);
@@ -237,9 +321,16 @@ public class ClientMain extends Application{
 		mainPane.getChildren().add(chatLabel);
 		mainPane.getChildren().add(outgoing);
 		mainPane.getChildren().add(sendButton);
+		mainPane.getChildren().add(groupCreateLabel);
+		mainPane.getChildren().add(newGroupField);
+		mainPane.getChildren().add(groupButton);
+		mainPane.getChildren().add(selectGroupLabel);
+		mainPane.getChildren().add(groupCreated);
+		mainPane.getChildren().add(groupYouArePartOf);
+		mainPane.getChildren().add(groupListArea);
 		
 		// Create a scene and place it in the stage 
-		Scene scene = new Scene(mainPane, 700, 500); 
+		Scene scene = new Scene(mainPane, 780, 500); 
 		primaryStage.setTitle("Chatroom"); // Set the stage title 
 		primaryStage.setScene(scene); // Place the scene in the stage 
 		primaryStage.show(); // Display the stage 
@@ -294,6 +385,17 @@ public class ClientMain extends Application{
 					else if(message.startsWith("*joinedGroup!*")){
 						String j = message.replace("*joinedGroup!*", "");
 						incoming.appendText(j + " has joined the chat!\n");
+					}
+					else if(message.startsWith("*CreatedNewGroup!*")){
+						String allNewGroupMembers = message.replace("*CreatedNewGroup!*", "");
+						String[] newGroupMembers = allNewGroupMembers.split(",");
+						String newGroupName = newGroupMembers[0]; // first name is the group name
+						CheckBox checkBox = new CheckBox(newGroupName);
+						CustomMenuItem newItem = new CustomMenuItem(checkBox);
+						groupCreated.getItems().add(newItem);
+						newItem.setHideOnClick(false);
+						groupListArea.appendText(newGroupName + "\n");
+						groupClientList.add(allNewGroupMembers);
 					}
 					else{
 						incoming.appendText(message + "\n");

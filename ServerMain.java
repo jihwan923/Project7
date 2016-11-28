@@ -184,6 +184,19 @@ public class ServerMain extends Application implements Observer {
 						}
 						serverLog.appendText("got a connection with " + this.name + "\n");
 					}
+					else if(message.startsWith("*CreatedNewGroup!*")){
+						synchronized(clientOutputStreams){
+							String[] messageParsed = message.replace("*CreatedNewGroup!*", "").split(",");
+							List<String> listParsed = Arrays.asList(messageParsed);
+							String groupName = messageParsed[0];
+							for(int i = 0; i < clientOutputStreams.size(); i++){
+								if(listParsed.contains(clientNameList.get(i))){
+									clientOutputStreams.get(i).println(message);
+									clientOutputStreams.get(i).flush();
+								}
+							}
+						}
+					}
 					else{
 						synchronized(clientOutputStreams){
 							String[] messageParsed = message.split(",");
