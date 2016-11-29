@@ -6,6 +6,7 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Observable;
+import java.util.Observer;
 
 import javafx.application.Application;
 import javafx.event.ActionEvent;
@@ -63,11 +64,13 @@ public class ClientMain extends Application{
 		TextField userIdEntry = new TextField();
 		TextField serverEntry = new TextField();
 		Button sendInitialInfoButton = new Button("Confirm");
+		Button sendButton = new Button("Send");
+		Button groupButton = new Button("Create Group");
 		
 		sendInitialInfoButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-            	if(userIdEntry.getText() != null && serverEntry.getText() != null && !initialized){
+            	if(!userIdEntry.getText().isEmpty() && !serverEntry.getText().isEmpty() && !initialized){
             		try { 
             			initialized = true;
             			
@@ -77,7 +80,7 @@ public class ClientMain extends Application{
         				name = idName;
         				
         				@SuppressWarnings("resource")
-        				Socket socket = new Socket(serverName, 4242); 
+        				Socket socket = new Socket(serverName, 6000); 
         				
         				InputStreamReader streamReader = new InputStreamReader(socket.getInputStream());
         				fromServer = new BufferedReader(streamReader);
@@ -97,6 +100,8 @@ public class ClientMain extends Application{
                 		userIdEntry.setDisable(true);
                 		serverEntry.setDisable(true);
         				sendInitialInfoButton.setDisable(true);
+        				sendButton.setDisable(false);
+        				groupButton.setDisable(false);
         				initialPrompt.setText("ChatRoom Access: " + idName);
         				//availableClientsText.appendText("Other People Online:\n");
         				//System.out.println("networking established");
@@ -114,8 +119,6 @@ public class ClientMain extends Application{
 		
 		TextField outgoing = new TextField();
 		outgoing.setAlignment(Pos.BOTTOM_RIGHT);
-		
-		Button sendButton = new Button("Send");
 		
 		sendButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -198,12 +201,11 @@ public class ClientMain extends Application{
 		/*
 		 * Create GROUP************
 		 */
-		Button groupButton = new Button("Create Group");
 		
 		groupButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-            	if(newGroupField.getText() != null){
+            	if(!newGroupField.getText().isEmpty()){
             		int peopleSelected = 0;
             		String totalMessage = "*CreatedNewGroup!*";
             		String newGroupName = newGroupField.getText();
@@ -220,7 +222,7 @@ public class ClientMain extends Application{
             		
             		//groupClientList.add(newGroupName);
             		if(peopleSelected == 0){
-            			incoming.appendText("Please select people to add to the group before creating a group!!!");
+            			incoming.appendText("Please select people to add to the group before creating a group!!!\n");
             		}
             		else{
             			totalMessage = totalMessage + name + ","; // include the messenger as well
@@ -306,6 +308,9 @@ public class ClientMain extends Application{
 		groupListArea.setLayoutX(560);
 		groupListArea.setLayoutY(265);
 		
+		sendButton.setDisable(true);
+		groupButton.setDisable(true);
+		
 		Pane mainPane = new Pane(); 
 		mainPane.getChildren().add(initialPrompt);
 		mainPane.getChildren().add(userId);
@@ -340,7 +345,7 @@ public class ClientMain extends Application{
 		launch(args);
 	}
 	
-	class IncomingReader implements Runnable {
+	class IncomingReader extends Observable implements Runnable {
 		public boolean clientRunning;
 		private Socket clientSocket;
 		
