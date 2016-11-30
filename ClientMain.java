@@ -4,6 +4,8 @@ import java.io.*;
 import java.lang.reflect.Method;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
@@ -38,6 +40,7 @@ public class ClientMain extends Application{
 	private String serverName;
 	private String name; 
 	
+	private Socket mainSocket;
 	private DataOutputStream dataToServer = null; 
 	private DataInputStream dataFromServer = null;
 	public MenuButton clientsOnline = new MenuButton();
@@ -47,7 +50,13 @@ public class ClientMain extends Application{
 	private boolean initialized;
 	public MenuButton groupCreated = new MenuButton();
 	public ArrayList<String> groupClientList = new ArrayList<String>();
+	public ArrayList<ArrayList<String>> clientsInGroupsLists = new ArrayList<ArrayList<String>>();////
 	public TextArea groupListArea = new TextArea();
+	public ArrayList<String> groupNameList = new ArrayList<String>();
+	public HashSet<String> groupNameListCheck = new HashSet<String>();
+	
+	public HashSet<String> friendCheckList = new HashSet<String>();///////
+	public ArrayList<String> friendList = new ArrayList<String>();//////
 
 	@Override // Override the start method in the Application class 
 	public void start(Stage primaryStage) { 
@@ -66,6 +75,9 @@ public class ClientMain extends Application{
 		Button sendInitialInfoButton = new Button("Confirm");
 		Button sendButton = new Button("Send");
 		Button groupButton = new Button("Create Group");
+		Button addPeopleToGroupButton = new Button("Add To Group");
+		Button logOutButton = new Button("Log Out");
+		Button sendFriendRequestButton = new Button("Send Friend Request");///////////
 		
 		sendInitialInfoButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -81,6 +93,7 @@ public class ClientMain extends Application{
         				
         				@SuppressWarnings("resource")
         				Socket socket = new Socket(serverName, 6000); 
+        				mainSocket = socket;
         				
         				InputStreamReader streamReader = new InputStreamReader(socket.getInputStream());
         				fromServer = new BufferedReader(streamReader);
@@ -102,6 +115,8 @@ public class ClientMain extends Application{
         				sendInitialInfoButton.setDisable(true);
         				sendButton.setDisable(false);
         				groupButton.setDisable(false);
+        				logOutButton.setDisable(false);
+        				addPeopleToGroupButton.setDisable(false);
         				initialPrompt.setText("ChatRoom Access: " + idName);
         				//availableClientsText.appendText("Other People Online:\n");
         				//System.out.println("networking established");
@@ -158,12 +173,17 @@ public class ClientMain extends Application{
                 		}
             		}
             		else{
+            			
             			String groupClientsNames = groupClientList.get(k);
             			String[] membersInGroup = groupClientsNames.split(",");
             			String groupNameExtracted = membersInGroup[0];
-            			for(int r = 1; r < membersInGroup.length; r++){
+            			/*for(int r = 1; r < membersInGroup.length; r++){
             				totalMessage = totalMessage + membersInGroup[r] + ",";
+            			}*/
+            			for(String s: clientsInGroupsLists.get(k)){
+            				totalMessage = totalMessage + s + ",";
             			}
+            			
             			String messageToBeSent = outgoing.getText();
             			totalMessage = totalMessage + "*privateMessages*" + "*" + groupNameExtracted + "*: " + messageToBeSent;
             		}
@@ -235,12 +255,90 @@ public class ClientMain extends Application{
             }
         });
 		
-		Button logOutButton = new Button("Log Out");
+		Label addPeopleLabel = new Label("Choose people\nto add to checked group");
+		
+		addPeopleToGroupButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+            	if(true){
+            		int peopleSelected = 0;
+            		int groupSelected = 0;
+            		String totalMessage = "*AddThesePeopleToGroup*";
+            		List<String> peopleInGroupList = new ArrayList<String>();
+            		
+            		for(int g = 0; g < groupCreated.getItems().size(); g++){
+            			CustomMenuItem mG = (CustomMenuItem)groupCreated.getItems().get(g);
+            			CheckBox cG = (CheckBox)mG.getContent();
+            			if(cG.isSelected()){
+            				String groupPeopleList = groupClientList.get(g);
+            				String[] groupParsed = groupPeopleList.split(",");
+							peopleInGroupList = Arrays.asList(groupParsed);
+            				
+            				String groupName = groupNameList.get(g);
+            				groupSelected++;
+            				totalMessage = totalMessage + groupPeopleList;
+            				break;
+            			}
+            		}
+
+            		for(int i = 0; i < clientsOnline.getItems().size(); i++){
+            			CustomMenuItem m = (CustomMenuItem)clientsOnline.getItems().get(i);
+            			CheckBox c = (CheckBox)m.getContent();
+            			if(c.isSelected()){
+            				String clientName = clientNameList.get(i);
+            				if(peopleInGroupList != null && !peopleInGroupList.contains(clientName)){
+            					totalMessage = totalMessage + clientName + ",";
+                				peopleSelected++;
+            				}
+            			}
+            		}
+            		
+            		//groupClientList.add(newGroupName);
+            		if(groupSelected == 0){
+            			incoming.appendText("Choose an appropriate group!\n");
+            		}
+            		else if(peopleSelected == 0){
+            			incoming.appendText("Select appropriate people to add to the group!\n");
+            		}
+            		else{
+            			//incoming.appendText("Group updated!\n");
+            			toServer.println(totalMessage);
+            			toServer.flush();
+            		}
+            	}
+            }
+        });
+		
 		
 		logOutButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-            	
+            	String message = "*LoggedOut*";
+            	message = message + name;
+            	toServer.println(message);
+            	toServer.flush();
+            	try {
+					mainSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+            	System.exit(0);
+            }
+        });
+		
+		sendFriendRequestButton.setOnAction(new EventHandler<ActionEvent>() {////////////////////
+            @Override
+            public void handle(ActionEvent event) {
+            	String message = "*AddFriends*";
+            	message = message + name;
+            	toServer.println(message);
+            	toServer.flush();
+            	try {
+					mainSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+            	System.exit(0);
             }
         });
 		
@@ -307,9 +405,19 @@ public class ClientMain extends Application{
 		groupYouArePartOf.setTextFill(Color.MEDIUMSEAGREEN);
 		groupListArea.setLayoutX(560);
 		groupListArea.setLayoutY(265);
+		addPeopleLabel.setLayoutX(120);
+		addPeopleLabel.setLayoutY(350);
+		addPeopleLabel.setFont(Font.font("Cambria", 11));
+		addPeopleLabel.setTextFill(Color.DARKGREEN);
+		addPeopleToGroupButton.setLayoutX(120);
+		addPeopleToGroupButton.setLayoutY(380);
+		logOutButton.setLayoutX(10);
+		logOutButton.setLayoutY(400);
 		
 		sendButton.setDisable(true);
 		groupButton.setDisable(true);
+		addPeopleToGroupButton.setDisable(true);
+		logOutButton.setDisable(true);
 		
 		Pane mainPane = new Pane(); 
 		mainPane.getChildren().add(initialPrompt);
@@ -333,6 +441,9 @@ public class ClientMain extends Application{
 		mainPane.getChildren().add(groupCreated);
 		mainPane.getChildren().add(groupYouArePartOf);
 		mainPane.getChildren().add(groupListArea);
+		mainPane.getChildren().add(addPeopleToGroupButton);
+		mainPane.getChildren().add(addPeopleLabel);
+		mainPane.getChildren().add(logOutButton);
 		
 		// Create a scene and place it in the stage 
 		Scene scene = new Scene(mainPane, 780, 500); 
@@ -394,6 +505,11 @@ public class ClientMain extends Application{
 					else if(message.startsWith("*CreatedNewGroup!*")){
 						String allNewGroupMembers = message.replace("*CreatedNewGroup!*", "");
 						String[] newGroupMembers = allNewGroupMembers.split(",");
+						
+						ArrayList<String> newMembersSet = new ArrayList<String>();
+						for(int n = 1; n < newGroupMembers.length; n++){ // exclude first index since first index contains group name
+							newMembersSet.add(newGroupMembers[n]);
+						}
 						String newGroupName = newGroupMembers[0]; // first name is the group name
 						CheckBox checkBox = new CheckBox(newGroupName);
 						CustomMenuItem newItem = new CustomMenuItem(checkBox);
@@ -401,6 +517,75 @@ public class ClientMain extends Application{
 						newItem.setHideOnClick(false);
 						groupListArea.appendText(newGroupName + "\n");
 						groupClientList.add(allNewGroupMembers);
+						groupNameList.add(newGroupName);
+						groupNameListCheck.add(newGroupName);
+						clientsInGroupsLists.add(newMembersSet);
+						incoming.appendText("You have been added to " + newGroupName + "\n");
+					}
+					else if(message.startsWith("*AddThesePeopleToGroup*")){
+						boolean groupExists = false;
+						String allNewGroupMembers = message.replace("*AddThesePeopleToGroup*", "");
+						String[] newGroupMembers = allNewGroupMembers.split(",");
+						String groupName = newGroupMembers[0]; // first name is the group name
+						for(int i = 0; i < groupNameList.size(); i++){
+							if(groupNameListCheck.contains(groupName)){ // this is for people who are already in the group
+								groupExists = true;
+								String currentClientListString = groupClientList.get(i);
+								String newClientList = currentClientListString;
+								String[] currentClientList = currentClientListString.split(",");
+								//List<String> listOfCurrentClients = Arrays.asList(currentClientList);
+								
+								for(int j = 1; j < newGroupMembers.length; j++){
+									//newClientList = "";
+									if(!clientsInGroupsLists.get(i).contains(newGroupMembers[j])){
+										clientsInGroupsLists.get(i).add(newGroupMembers[j]);
+										//newClientList = currentClientListString + newGroupMembers[j] + ",";
+									}
+								}
+								//groupClientList.set(i, newClientList);
+							}
+						}
+						if(!groupExists){ // if the person is not in the group
+							CheckBox checkBox = new CheckBox(groupName);
+							CustomMenuItem newItem = new CustomMenuItem(checkBox);
+							groupCreated.getItems().add(newItem);
+							newItem.setHideOnClick(false);
+							groupListArea.appendText(groupName + "\n");
+							groupClientList.add(allNewGroupMembers);
+							groupNameList.add(groupName);
+							ArrayList<String> newGroupList = new ArrayList<String>();
+							for(int s = 1; s < newGroupMembers.length; s++){ // exclude first index since first index contains group name
+								newGroupList.add(newGroupMembers[s]);
+							}
+							clientsInGroupsLists.add(newGroupList);
+						}
+						incoming.appendText(groupName + " Updated!\n");
+					}
+					else if(message.startsWith("*LoggedOut*")){
+						String userToBeRemoved = message.replace("*LoggedOut*", "");
+						for(int i = 0; i < clientNameList.size(); i++){
+							if(clientNameList.get(i).equals(userToBeRemoved)){
+								clientNameList.remove(i);
+								clientsOnline.getItems().remove(i);
+							}
+						}
+						
+						for(ArrayList<String> listString: clientsInGroupsLists){ // remove from group lists
+							for(int k = 0; k < listString.size(); k++){
+								if(listString.get(k).equals(userToBeRemoved)){
+									listString.remove(k);
+								}
+							}
+						}
+						
+						availableClientsText.setText("");
+						for(String s: clientNameList){
+							availableClientsText.appendText(s + "\n");
+						}
+						incoming.appendText(userToBeRemoved + " logged out!\n");
+					}
+					else if(message.startsWith("*AddFriends*")){//
+						
 					}
 					else{
 						incoming.appendText(message + "\n");
