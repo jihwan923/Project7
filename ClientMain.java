@@ -11,6 +11,7 @@ import java.util.Observable;
 import java.util.Observer;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets; 
@@ -25,11 +26,14 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.ScrollPane; 
 import javafx.scene.control.TextArea;
 
-import javafx.scene.control.TextField; 
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.stage.Stage; 
 
 
@@ -61,6 +65,21 @@ public class ClientMain extends Application{
 	@Override // Override the start method in the Application class 
 	public void start(Stage primaryStage) { 
 		// Panel p to hold the label and text field 
+		
+		Stage initialMessageWindow = new Stage();
+		
+		final ImageView imv = new ImageView();
+        final Image image1 = new Image(getClass().getResourceAsStream("/resource/SmileyFace.png"));
+        imv.setImage(image1);
+        imv.setFitHeight(100);
+        imv.setFitWidth(100);
+        
+        final ImageView imv2 = new ImageView();
+        final Image image2 = new Image(getClass().getResourceAsStream("/resource/ChatRoom.png"));
+        imv2.setImage(image2);
+        imv2.setFitHeight(120);
+        imv2.setFitWidth(120);
+		
 		initialized = false;
 		pS = primaryStage;
 		BorderPane paneForTextField = new BorderPane(); 
@@ -106,6 +125,8 @@ public class ClientMain extends Application{
         				String newMessage = confirmNewName + idName;
         				toServer.println(newMessage);
         				toServer.flush();
+        				primaryStage.show();
+        				initialMessageWindow.close();
         				userIdEntry.setText("");
                 		userIdEntry.requestFocus();
                 		serverEntry.setText("");
@@ -198,7 +219,7 @@ public class ClientMain extends Application{
 		
 		incoming = new TextArea(); // text area for the incoming server message
 		incoming.setPrefWidth(300);
-		incoming.setPrefHeight(320);
+		incoming.setPrefHeight(450);
 		incoming.setEditable(false); // prevent the users to edit the text areas
 		
 		Label peopleOnlineLabel = new Label("Available People:");
@@ -342,6 +363,10 @@ public class ClientMain extends Application{
             }
         });
 		
+		imv.setLayoutX(50);
+		imv.setLayoutY(20);
+		imv2.setLayoutX(70);
+		imv2.setLayoutY(10);
 		initialPrompt.setLayoutX(200);
 		initialPrompt.setLayoutY(5);
 		initialPrompt.setFont(Font.font("Verdana",15));
@@ -371,7 +396,7 @@ public class ClientMain extends Application{
 		clientsOnline.setLayoutX(140);
 		clientsOnline.setLayoutY(175);
 		incoming.setLayoutX(240);
-		incoming.setLayoutY(140);
+		incoming.setLayoutY(10);
 		chatLabel.setLayoutX(200);
 		chatLabel.setLayoutY(460);
 		chatLabel.setFont(Font.font("Impact", 12));
@@ -420,12 +445,12 @@ public class ClientMain extends Application{
 		logOutButton.setDisable(true);
 		
 		Pane mainPane = new Pane(); 
-		mainPane.getChildren().add(initialPrompt);
-		mainPane.getChildren().add(userId);
-		mainPane.getChildren().add(serverPrompt);
-		mainPane.getChildren().add(userIdEntry);
-		mainPane.getChildren().add(serverEntry);
-		mainPane.getChildren().add(sendInitialInfoButton);
+		//mainPane.getChildren().add(initialPrompt);
+		//mainPane.getChildren().add(userId);
+		//mainPane.getChildren().add(serverPrompt);
+		//mainPane.getChildren().add(userIdEntry);
+		//mainPane.getChildren().add(serverEntry);
+		//mainPane.getChildren().add(sendInitialInfoButton);
 		mainPane.getChildren().add(peopleOnlineLabel);
 		mainPane.getChildren().add(availableClientsText);
 		mainPane.getChildren().add(privateMessageLabel);
@@ -444,16 +469,48 @@ public class ClientMain extends Application{
 		mainPane.getChildren().add(addPeopleToGroupButton);
 		mainPane.getChildren().add(addPeopleLabel);
 		mainPane.getChildren().add(logOutButton);
+		mainPane.getChildren().add(imv2);
+		
+		
+		Pane popUpPane = new Pane();
+		popUpPane.getChildren().add(initialPrompt);
+		popUpPane.getChildren().add(userId);
+		popUpPane.getChildren().add(serverPrompt);
+		popUpPane.getChildren().add(userIdEntry);
+		popUpPane.getChildren().add(serverEntry);
+		popUpPane.getChildren().add(sendInitialInfoButton);
+		popUpPane.getChildren().add(imv);
+		
+		Scene popUpScene = new Scene(popUpPane, 580, 150);
+		initialMessageWindow.setTitle("Log-In Set Up");
+		initialMessageWindow.setScene(popUpScene);
+		initialMessageWindow.show();
 		
 		// Create a scene and place it in the stage 
 		Scene scene = new Scene(mainPane, 780, 500); 
 		primaryStage.setTitle("Chatroom"); // Set the stage title 
 		primaryStage.setScene(scene); // Place the scene in the stage 
-		primaryStage.show(); // Display the stage 
+		//primaryStage.show(); // Display the stage 
 	}
 	
 	public static void main(String[] args) {
 		launch(args);
+	}
+	
+	public void printOnScreenChat(String message){
+		Platform.runLater(new Runnable() {
+            @Override public void run() {
+            	incoming.appendText(message);
+            }
+        });
+	}
+	
+	public void printAvailableClients(String message){
+		Platform.runLater(new Runnable() {
+            @Override public void run() {
+            	availableClientsText.appendText(message);
+            }
+        });
 	}
 	
 	class IncomingReader extends Observable implements Runnable {
@@ -489,7 +546,8 @@ public class ClientMain extends Application{
 								CustomMenuItem newItem = new CustomMenuItem(checkBox);
 								newItem.setHideOnClick(false);
 								clientsOnline.getItems().add(newItem);
-								availableClientsText.appendText(peopleOnline[i] + "\n");
+								//availableClientsText.appendText(peopleOnline[i] + "\n");
+								printAvailableClients(peopleOnline[i] + "\n");
 							}
 						}
 					}
@@ -500,7 +558,8 @@ public class ClientMain extends Application{
 					}
 					else if(message.startsWith("*joinedGroup!*")){
 						String j = message.replace("*joinedGroup!*", "");
-						incoming.appendText(j + " has joined the chat!\n");
+						printOnScreenChat(j + " has joined the chat!\n");
+						//incoming.appendText(j + " has joined the chat!\n");
 					}
 					else if(message.startsWith("*CreatedNewGroup!*")){
 						String allNewGroupMembers = message.replace("*CreatedNewGroup!*", "");
@@ -520,7 +579,8 @@ public class ClientMain extends Application{
 						groupNameList.add(newGroupName);
 						groupNameListCheck.add(newGroupName);
 						clientsInGroupsLists.add(newMembersSet);
-						incoming.appendText("You have been added to " + newGroupName + "\n");
+						printOnScreenChat("You have been added to " + newGroupName + "\n");
+						//incoming.appendText("You have been added to " + newGroupName + "\n");
 					}
 					else if(message.startsWith("*AddThesePeopleToGroup*")){
 						boolean groupExists = false;
@@ -559,7 +619,8 @@ public class ClientMain extends Application{
 							}
 							clientsInGroupsLists.add(newGroupList);
 						}
-						incoming.appendText(groupName + " Updated!\n");
+						printOnScreenChat(groupName + " Updated!\n");
+						//incoming.appendText(groupName + " Updated!\n");
 					}
 					else if(message.startsWith("*LoggedOut*")){
 						String userToBeRemoved = message.replace("*LoggedOut*", "");
@@ -582,13 +643,15 @@ public class ClientMain extends Application{
 						for(String s: clientNameList){
 							availableClientsText.appendText(s + "\n");
 						}
-						incoming.appendText(userToBeRemoved + " logged out!\n");
+						printOnScreenChat(userToBeRemoved + " logged out!\n");
+						//incoming.appendText(userToBeRemoved + " logged out!\n");
 					}
 					else if(message.startsWith("*AddFriends*")){//
 						
 					}
 					else{
-						incoming.appendText(message + "\n");
+						printOnScreenChat(message + "\n");
+						//incoming.appendText(message + "\n");
 					}
 				}
 			} catch (IOException ex) {

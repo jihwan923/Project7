@@ -76,7 +76,7 @@ public class ServerMain extends Application {
 	public class Server extends Observable{
 		
 		public void setUpNetworking() throws Exception{
-			new Thread( () -> { 
+			new Thread( () -> { // start up the server thread
 				try {  // Create a server socket 
 					clientOutputStreams = new ArrayList<ClientObserver>();
 					clientList = new ArrayList<Observable>();
@@ -92,7 +92,6 @@ public class ServerMain extends Application {
 						ClientObserver newWriter = new ClientObserver(clientSocket.getOutputStream());
 						ClientHandler newHandler = new ClientHandler(clientSocket, clientNum, newWriter);
 						Thread t = new Thread(newHandler);
-						//clientList.add(newHandler);
 						t.start();
 						this.addObserver(newWriter);
 					}
@@ -122,7 +121,7 @@ public class ServerMain extends Application {
 				try {
 					while (((message = reader.readLine()) != null)) {
 						if(message.startsWith("*sendToAll*")){
-							synchronized(clientOutputStreams){
+							synchronized(this){
 								message = message.replace("*sendToAll*", "");
 								for(int i = 0; i < clientOutputStreams.size(); i++){
 									clientOutputStreams.get(i).println(this.name + ": " + message);
@@ -132,7 +131,7 @@ public class ServerMain extends Application {
 							serverLog.appendText("read " + message + "\n");
 						}
 						else if(message.startsWith("*sendingNewUserName*")){
-							synchronized(clientOutputStreams){
+							synchronized(this){
 								String userNameInput = message.replace("*sendingNewUserName*", "");
 								if(clientNameList.contains(userNameInput)){ // checking if it already exists
 									int num = 1;
@@ -167,7 +166,7 @@ public class ServerMain extends Application {
 							serverLog.appendText("got a connection with " + this.name + "\n");
 						}
 						else if(message.startsWith("*CreatedNewGroup!*")){
-							synchronized(clientOutputStreams){
+							synchronized(this){
 								String[] messageParsed = message.replace("*CreatedNewGroup!*", "").split(",");
 								List<String> listParsed = Arrays.asList(messageParsed);
 								String groupName = messageParsed[0];
@@ -181,7 +180,7 @@ public class ServerMain extends Application {
 							}
 						}
 						else if(message.startsWith("*AddThesePeopleToGroup*")){//
-							synchronized(clientOutputStreams){
+							synchronized(this){
 								String[] messageParsed = message.replace("*AddThesePeopleToGroup*", "").split(",");
 								List<String> listParsed = Arrays.asList(messageParsed);
 								String groupName = messageParsed[0];
@@ -194,7 +193,7 @@ public class ServerMain extends Application {
 							}
 						}
 						else if(message.startsWith("*LoggedOut*")){
-							synchronized(clientOutputStreams){
+							synchronized(this){
 								String userToRemove = message.replace("*LoggedOut*", "");
 								int i = 0;
 								for(i = 0; i < clientNameList.size(); i++){
@@ -214,8 +213,8 @@ public class ServerMain extends Application {
 								}
 							}
 						}
-						else{
-							synchronized(clientOutputStreams){
+						else{ // else, it is just a message between users
+							synchronized(this){
 								String[] messageParsed = message.split(",");
 								List<String> listParsed = Arrays.asList(messageParsed);
 								String actualMessage = messageParsed[messageParsed.length - 1].replace("*privateMessages*", "");
@@ -241,7 +240,7 @@ public class ServerMain extends Application {
 			super(out);
 		}
 		@Override
-		public void update(Observable o, Object arg) {
+		public void update(Observable o, Object arg) { // used to send same message to all the clients
 			this.println(arg); //writer.println(arg);
 			this.flush(); //writer.flush();
 		}
