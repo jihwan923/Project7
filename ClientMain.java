@@ -1,3 +1,15 @@
+/* CHATROOM ClientMain.java
+ * EE422C Project 7 submission by
+ * Jihwan Lee
+ * jl54387
+ * 16445
+ * Kevin Liang
+ * kgl392
+ * 16445
+ * Slip days used: <1>
+ * Fall 2016
+ */
+
 package assignment7;
 
 import java.io.*;
@@ -42,7 +54,11 @@ public class ClientMain extends Application{
 	private PrintWriter toServer;
 	private TextArea incoming;
 	private String serverName;
-	private String name; 
+	private String name;
+	
+	private boolean isMod = false;
+	
+	private final String modPassword = "EE422C";
 	
 	private Socket mainSocket;
 	private DataOutputStream dataToServer = null; 
@@ -61,6 +77,8 @@ public class ClientMain extends Application{
 	
 	public HashSet<String> friendCheckList = new HashSet<String>();///////
 	public ArrayList<String> friendList = new ArrayList<String>();//////
+	
+	private Button banPeopleButton = new Button("Ban People");
 
 	@Override // Override the start method in the Application class 
 	public void start(Stage primaryStage) { 
@@ -247,6 +265,10 @@ public class ClientMain extends Application{
             @Override
             public void handle(ActionEvent event) {
             	if(!newGroupField.getText().isEmpty()){
+            		if(groupNameListCheck.contains(newGroupField.getText())){
+            			incoming.appendText("Group already exists!\n");
+            			return;
+            		}
             		int peopleSelected = 0;
             		String totalMessage = "*CreatedNewGroup!*";
             		String newGroupName = newGroupField.getText();
@@ -284,16 +306,18 @@ public class ClientMain extends Application{
             	if(true){
             		int peopleSelected = 0;
             		int groupSelected = 0;
+            		int g = 0;
             		String totalMessage = "*AddThesePeopleToGroup*";
             		List<String> peopleInGroupList = new ArrayList<String>();
             		
-            		for(int g = 0; g < groupCreated.getItems().size(); g++){
+            		for(g = 0; g < groupCreated.getItems().size(); g++){
             			CustomMenuItem mG = (CustomMenuItem)groupCreated.getItems().get(g);
             			CheckBox cG = (CheckBox)mG.getContent();
             			if(cG.isSelected()){
             				String groupPeopleList = groupClientList.get(g);
             				String[] groupParsed = groupPeopleList.split(",");
-							peopleInGroupList = Arrays.asList(groupParsed);
+							//peopleInGroupList = Arrays.asList(groupParsed);
+            				peopleInGroupList = clientsInGroupsLists.get(g);
             				
             				String groupName = groupNameList.get(g);
             				groupSelected++;
@@ -307,9 +331,9 @@ public class ClientMain extends Application{
             			CheckBox c = (CheckBox)m.getContent();
             			if(c.isSelected()){
             				String clientName = clientNameList.get(i);
-            				if(peopleInGroupList != null && !peopleInGroupList.contains(clientName)){
+            				if(peopleInGroupList != null && !peopleInGroupList.contains(clientName)){ ////
             					totalMessage = totalMessage + clientName + ",";
-                				peopleSelected++;
+            					peopleSelected++;
             				}
             			}
             		}
@@ -323,6 +347,9 @@ public class ClientMain extends Application{
             		}
             		else{
             			//incoming.appendText("Group updated!\n");
+            			for(String s: clientsInGroupsLists.get(g)){
+            				totalMessage = totalMessage + s + ",";
+            			}
             			toServer.println(totalMessage);
             			toServer.flush();
             		}
@@ -360,6 +387,52 @@ public class ClientMain extends Application{
 					e.printStackTrace();
 				}
             	System.exit(0);
+            }
+        });
+		
+		Button modRequestButton = new Button("Mod Request");
+		
+		TextField modPasswordField = new TextField();
+		Label requestModLabel = new Label("Input password to request mod status");
+		
+		modRequestButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+            	if(!modPasswordField.getText().isEmpty()){
+            		String message = "*RequestMod*";
+                	String password = modPasswordField.getText();
+                	message = message + name + "," + password;
+                	if(password.equals(modPassword)){
+                		banPeopleButton.setDisable(false);
+                	}
+                	//toServer.println(message);
+            		//toServer.flush();
+            		modPasswordField.setText("");
+            		modPasswordField.requestFocus();
+            		modRequestButton.setDisable(true);
+            	}
+            	
+            }
+        });
+		
+		banPeopleButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+            		String message = "*BanPeople*";
+                	int peopleSelected = 0;
+                	for(int i = 0; i < clientsOnline.getItems().size(); i++){
+            			CustomMenuItem m = (CustomMenuItem)clientsOnline.getItems().get(i);
+            			CheckBox c = (CheckBox)m.getContent();
+            			if(c.isSelected()){
+            				String clientName = clientNameList.get(i);
+            				message = message + clientName + ",";
+            				peopleSelected++;
+            			}
+            		}
+                	if(peopleSelected != 0){
+                		toServer.println(message);
+                		toServer.flush();
+                	}
             }
         });
 		
@@ -439,6 +512,16 @@ public class ClientMain extends Application{
 		logOutButton.setLayoutX(10);
 		logOutButton.setLayoutY(400);
 		
+		modPasswordField.setLayoutX(600);
+		modPasswordField.setLayoutY(10);
+		modPasswordField.setPrefWidth(60);
+		modRequestButton.setLayoutX(660);
+		modRequestButton.setLayoutY(10);
+		banPeopleButton.setLayoutX(600);
+		banPeopleButton.setLayoutY(60);
+		
+		banPeopleButton.setDisable(true);
+		
 		sendButton.setDisable(true);
 		groupButton.setDisable(true);
 		addPeopleToGroupButton.setDisable(true);
@@ -470,6 +553,13 @@ public class ClientMain extends Application{
 		mainPane.getChildren().add(addPeopleLabel);
 		mainPane.getChildren().add(logOutButton);
 		mainPane.getChildren().add(imv2);
+		
+		
+		
+		mainPane.getChildren().add(modRequestButton);
+		mainPane.getChildren().add(modPasswordField);
+		//mainPane.getChildren().add(requestModLabel);
+		mainPane.getChildren().add(banPeopleButton);
 		
 		
 		Pane popUpPane = new Pane();
@@ -509,6 +599,33 @@ public class ClientMain extends Application{
 		Platform.runLater(new Runnable() {
             @Override public void run() {
             	availableClientsText.appendText(message);
+            }
+        });
+	}
+	
+	public void allowBanButton(){
+		isMod = true;
+//		Platform.runLater(new Runnable() {
+//            @Override public void run() {
+//            	
+//            	banPeopleButton.setDisable(false);
+//            }
+//        });
+	}
+	
+	public void forceLogOut(){
+		Platform.runLater(new Runnable() {
+            @Override public void run() {
+            	String message = "*LoggedOut*";
+            	message = message + name;
+            	toServer.println(message);
+            	toServer.flush();
+            	try {
+					mainSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+            	System.exit(0);
             }
         });
 	}
@@ -587,6 +704,7 @@ public class ClientMain extends Application{
 						String allNewGroupMembers = message.replace("*AddThesePeopleToGroup*", "");
 						String[] newGroupMembers = allNewGroupMembers.split(",");
 						String groupName = newGroupMembers[0]; // first name is the group name
+						
 						for(int i = 0; i < groupNameList.size(); i++){
 							if(groupNameListCheck.contains(groupName)){ // this is for people who are already in the group
 								groupExists = true;
@@ -605,7 +723,8 @@ public class ClientMain extends Application{
 								//groupClientList.set(i, newClientList);
 							}
 						}
-						if(!groupExists){ // if the person is not in the group
+						//if(!groupExists){ // if the person is not in the group
+						if(!groupExists){
 							CheckBox checkBox = new CheckBox(groupName);
 							CustomMenuItem newItem = new CustomMenuItem(checkBox);
 							groupCreated.getItems().add(newItem);
@@ -618,6 +737,7 @@ public class ClientMain extends Application{
 								newGroupList.add(newGroupMembers[s]);
 							}
 							clientsInGroupsLists.add(newGroupList);
+							groupNameListCheck.add(groupName);
 						}
 						printOnScreenChat(groupName + " Updated!\n");
 						//incoming.appendText(groupName + " Updated!\n");
@@ -646,8 +766,11 @@ public class ClientMain extends Application{
 						printOnScreenChat(userToBeRemoved + " logged out!\n");
 						//incoming.appendText(userToBeRemoved + " logged out!\n");
 					}
-					else if(message.startsWith("*AddFriends*")){//
-						
+					else if(message.startsWith("*ModSuccess*")){//
+						allowBanButton();
+					}
+					else if(message.startsWith("*BanPeople*")){/////
+						forceLogOut();
 					}
 					else{
 						printOnScreenChat(message + "\n");

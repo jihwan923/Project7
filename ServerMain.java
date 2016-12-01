@@ -1,3 +1,15 @@
+/* CHATROOM ServerMain.java
+ * EE422C Project 7 submission by
+ * Jihwan Lee
+ * jl54387
+ * 16445
+ * Kevin Liang
+ * kgl392
+ * 16445
+ * Slip days used: <1>
+ * Fall 2016
+ */
+
 package assignment7;
 
 import java.io.BufferedReader;
@@ -32,6 +44,8 @@ public class ServerMain extends Application {
 	private ArrayList<String> clientNameList;
 	private int clientNum = 0;
 	private boolean newClientAdded;
+	private ArrayList<String> modList = new ArrayList<String>();
+	private String password = "EE422C";
 
 	public static void main(String[] args) {
 		launch(args);
@@ -175,7 +189,6 @@ public class ServerMain extends Application {
 										clientOutputStreams.get(i).println(message);
 										clientOutputStreams.get(i).flush();
 									}
-						
 								}
 							}
 						}
@@ -210,6 +223,31 @@ public class ServerMain extends Application {
 								for(PrintWriter w: clientOutputStreams){
 									w.println(message);
 									w.flush();
+								}
+							}
+						}
+						else if(message.startsWith("*RequestMod*")){
+							synchronized(this){
+								String userRequestingMod = message.replace("*RequestMod*", "");
+								String [] parseStrings = userRequestingMod.split(",");
+								List<String> passwordList = Arrays.asList(parseStrings);
+								
+								
+								if(passwordList.contains(password)){
+									this.writer.println("*ModSuccess*");
+								}
+							}
+						}
+						else if(message.startsWith("*BanPeople*")){
+							synchronized(this){
+								String peopleToBeRemoved = message.replace("*BanPeople*", "");
+								String[] peopleList = peopleToBeRemoved.split(",");
+								List<String> listParsed = Arrays.asList(peopleList);
+								for(int i = 0; i < clientOutputStreams.size(); i++){
+									if(listParsed.contains(clientNameList.get(i))){
+										clientOutputStreams.get(i).println("*BanPeople*");
+										clientOutputStreams.get(i).flush();
+									}
 								}
 							}
 						}
